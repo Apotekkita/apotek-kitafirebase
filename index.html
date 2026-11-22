@@ -3189,7 +3189,7 @@
       }
     }
 
-   // ==================== KONEKSI FIREBASE REALTIME ====================
+// ==================== KONEKSI FIREBASE REALTIME (FIXED) ====================
 const firebaseConfig = {
   apiKey: "AIzaSyDlPocJ1dzkVp_T5-V35oF9RqDyLFgGdQI",
   authDomain: "apotek-kita-9c8c8.firebaseapp.com",
@@ -3201,8 +3201,16 @@ const firebaseConfig = {
   measurementId: "G-571BSJYDRW"
 };
 
-firebase.initializeApp(firebaseConfig);
-const cloudDb = firebase.database();
+let cloudDb = null;
+try {
+  if (typeof firebase !== 'undefined') {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    cloudDb = firebase.database();
+  }
+} catch (err) {
+  console.error('Gagal inisialisasi Firebase:', err);
+}
+
 let isSyncingFromCloud = false;
 
 const SYNCED_KEYS = [
@@ -3225,9 +3233,10 @@ const SYNCED_KEYS = [
 
 function saveState(key, value) {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
-    if (!isSyncingFromCloud && SYNCED_KEYS.includes(key)) {
-      cloudDb.ref('apotek_data/' + key).set(value).catch(err => {
+    const jsonStr = JSON.stringify(value);
+    localStorage.setItem(key, jsonStr);
+    if (cloudDb && !isSyncingFromCloud && SYNCED_KEYS.includes(key)) {
+      cloudDb.ref('apotek_json/' + key).set(jsonStr).catch(err => {
         console.error('Gagal sinkron ke cloud:', err);
       });
     }
@@ -3237,43 +3246,51 @@ function saveState(key, value) {
 }
 
 function initRealtimeSync() {
-  cloudDb.ref('apotek_data').on('value', (snapshot) => {
+  if (!cloudDb) return;
+  cloudDb.ref('apotek_json').on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) {
       // Unggah data awal jika database cloud masih kosong
       SYNCED_KEYS.forEach(k => {
-        const localVal = localStorage.getItem(k);
-        if (localVal) cloudDb.ref('apotek_data/' + k).set(JSON.parse(localVal));
+        const localStr = localStorage.getItem(k);
+        if (localStr) cloudDb.ref('apotek_json/' + k).set(localStr);
       });
       return;
     }
 
+    let adaPerubahan = false;
     isSyncingFromCloud = true;
     try {
-      if (data[STORAGE_KEYS.SETTINGS]) settings = data[STORAGE_KEYS.SETTINGS];
-      if (data[STORAGE_KEYS.USERS]) users = data[STORAGE_KEYS.USERS];
-      if (data[STORAGE_KEYS.INVENTORY]) inventory = data[STORAGE_KEYS.INVENTORY];
-      if (data[STORAGE_KEYS.MASTER_ITEMS]) masterItems = data[STORAGE_KEYS.MASTER_ITEMS];
-      if (data[STORAGE_KEYS.ORDERS]) purchaseOrders = data[STORAGE_KEYS.ORDERS];
-      if (data[STORAGE_KEYS.RECEIPTS]) goodsReceipts = data[STORAGE_KEYS.RECEIPTS];
-      if (data[STORAGE_KEYS.TRANSACTIONS]) transactions = data[STORAGE_KEYS.TRANSACTIONS];
-      if (data[STORAGE_KEYS.SUPPLIERS]) suppliers = data[STORAGE_KEYS.SUPPLIERS];
-      if (data[STORAGE_KEYS.STOCK_CARDS]) stockCards = data[STORAGE_KEYS.STOCK_CARDS];
-      if (data[STORAGE_KEYS.LOANS]) pharmacyLoans = data[STORAGE_KEYS.LOANS];
-      if (data[STORAGE_KEYS.RETURNS]) returnsList = data[STORAGE_KEYS.RETURNS];
-      if (data[STORAGE_KEYS.PAYABLES]) payablesList = data[STORAGE_KEYS.PAYABLES];
-      if (data[STORAGE_KEYS.OPEX]) operatingExpenses = data[STORAGE_KEYS.OPEX];
-      if (data[STORAGE_KEYS.OPEX_RECURRING]) recurringOpex = data[STORAGE_KEYS.OPEX_RECURRING];
-      if (data[STORAGE_KEYS.CASHIER_CLOSINGS]) cashierClosings = data[STORAGE_KEYS.CASHIER_CLOSINGS];
+      const parseSafe = (k, fallback) => {
+        if (typeof data[k] !== 'string') return null;
+        if (localStorage.getItem(k) === data[k]) return null; // Tidak berubah
+        adaPerubahan = true;
+        localStorage.setItem(k, data[k]);
+        return JSON.parse(data[k]);
+      };
 
-      SYNCED_KEYS.forEach(k => {
-        if (data[k] !== undefined) localStorage.setItem(k, JSON.stringify(data[k]));
-      });
+      const vSettings = parseSafe(STORAGE_KEYS.SETTINGS); if (vSettings) settings = vSettings;
+      const vUsers = parseSafe(STORAGE_KEYS.USERS); if (Array.isArray(vUsers)) users = vUsers;
+      const vInv = parseSafe(STORAGE_KEYS.INVENTORY); if (Array.isArray(vInv)) inventory = vInv;
+      const vMaster = parseSafe(STORAGE_KEYS.MASTER_ITEMS); if (Array.isArray(vMaster)) masterItems = vMaster;
+      const vOrders = parseSafe(STORAGE_KEYS.ORDERS); if (Array.isArray(vOrders)) purchaseOrders = vOrders;
+      const vReceipts = parseSafe(STORAGE_KEYS.RECEIPTS); if (Array.isArray(vReceipts)) goodsReceipts = vReceipts;
+      const vTrx = parseSafe(STORAGE_KEYS.TRANSACTIONS); if (Array.isArray(vTrx)) transactions = vTrx;
+      const vSup = parseSafe(STORAGE_KEYS.SUPPLIERS); if (Array.isArray(vSup)) suppliers = vSup;
+      const vSc = parseSafe(STORAGE_KEYS.STOCK_CARDS); if (vSc) stockCards = vSc;
+      const vLoans = parseSafe(STORAGE_KEYS.LOANS); if (Array.isArray(vLoans)) pharmacyLoans = vLoans;
+      const vRet = parseSafe(STORAGE_KEYS.RETURNS); if (Array.isArray(vRet)) returnsList = vRet;
+      const vPay = parseSafe(STORAGE_KEYS.PAYABLES); if (Array.isArray(vPay)) payablesList = vPay;
+      const vOpex = parseSafe(STORAGE_KEYS.OPEX); if (Array.isArray(vOpex)) operatingExpenses = vOpex;
+      const vRecOpex = parseSafe(STORAGE_KEYS.OPEX_RECURRING); if (Array.isArray(vRecOpex)) recurringOpex = vRecOpex;
+      const vClose = parseSafe(STORAGE_KEYS.CASHIER_CLOSINGS); if (Array.isArray(vClose)) cashierClosings = vClose;
 
-      if (currentUser) {
+      if (adaPerubahan && currentUser) {
         applyBranding();
         refreshAllViews();
       }
+    } catch (e) {
+      console.error('Gagal membaca data cloud:', e);
     } finally {
       isSyncingFromCloud = false;
     }
