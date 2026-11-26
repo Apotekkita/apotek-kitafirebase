@@ -12,6 +12,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -319,6 +320,12 @@
               <span class="leading-snug truncate">Harga Produk Tertentu</span>
             </span>
           </button>
+<button data-tab="backupexcel" data-label="ekspor &amp; impor excel" onclick="switchTab('backupexcel')" class="nav-item sidebar-nav-btn group w-full flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-left">
+  <span class="flex items-center gap-2.5 min-w-0">
+    <span class="nav-icon-box"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i></span>
+    <span class="leading-snug truncate">Ekspor &amp; Impor Excel</span>
+  </span>
+</button>
         </nav>
 
         <!-- Footer Cards: Apoteker Penanggung Jawab & User Session -->
@@ -2976,9 +2983,139 @@
           </div>
         </div>
       </section>
+<!-- ==================== TAB 13: EKSPOR & IMPOR EXCEL ==================== -->
+      <section id="tab-backupexcel" class="tab-section hidden space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-[#D5E5F4]">
+          <div>
+            <h2 class="text-base font-extrabold text-[#0D2E54] flex items-center gap-2">
+              <i data-lucide="file-spreadsheet" class="w-5 h-5 text-[#3F9B46]"></i>
+              Ekspor &amp; Impor Data (Excel .xlsx)
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Cadangkan seluruh database ke file Excel multi-sheet, ekspor per modul, unduh template input, atau impor data dari Excel.
+            </p>
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E6F4EA] text-[#15803D] text-xs font-bold shrink-0 self-start sm:self-auto">
+            <i data-lucide="database" class="w-3.5 h-3.5"></i> 16 Modul Database Terhubung
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <!-- Kartu Ekspor Lengkap -->
+          <div class="bg-white rounded-3xl p-6 border border-[#D5E5F4] space-y-4 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-[#E6F4EA] text-[#3F9B46] flex items-center justify-center shrink-0">
+                  <i data-lucide="download" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-extrabold text-[#0D2E54]">1. Ekspor Seluruh Data ke Excel</h3>
+                  <p class="text-[11px] text-slate-500">1 file .xlsx berisi seluruh modul dalam sheet terpisah</p>
+                </div>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Mengunduh seluruh data operasional apotek ke dalam satu file <strong>.xlsx</strong> (Inventaris, Master Barang, Transaksi Kasir, SP, Penerimaan, Retur, Hutang PBF, Kartu Stok, Pinjam Apotek, Stok Opname, Biaya Operasional, Shift, Supplier, Pengguna, dan Pengaturan).
+              </p>
+              <div id="excel-export-summary" class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1"></div>
+            </div>
+
+            <button type="button" onclick="exportAllDataToExcel()" class="w-full py-3 px-4 rounded-2xl bg-[#3F9B46] hover:bg-[#2E7D32] text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-colors">
+              <i data-lucide="file-down" class="w-4 h-4"></i> Unduh Backup Lengkap (.xlsx)
+            </button>
+          </div>
+
+          <!-- Kartu Impor Data -->
+          <div class="bg-white rounded-3xl p-6 border border-[#D5E5F4] space-y-4 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-[#F2F7FC] text-[#124E96] flex items-center justify-center shrink-0">
+                  <i data-lucide="upload" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-extrabold text-[#0D2E54]">2. Impor / Pulihkan Data dari Excel</h3>
+                  <p class="text-[11px] text-slate-500">Mendukung file Backup Lengkap, Ekspor Per Modul, maupun Template</p>
+                </div>
+              </div>
+
+              <div class="space-y-2.5 pt-1">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Mode Impor Data</label>
+                  <select id="excel-import-mode" class="w-full px-3 py-2.5 rounded-xl border border-[#D5E5F4] bg-[#F2F7FC]/60 text-xs font-semibold text-slate-700 outline-none focus:border-[#124E96]">
+                    <option value="replace">Timpa Data Lama (Restore Penuh sesuai isi file Excel)</option>
+                    <option value="merge">Gabung / Tambah Data Baru (Pertahankan data lama, tambahkan/perbarui dari Excel)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Pilih File Excel (.xlsx / .xls)</label>
+                  <input type="file" id="excel-import-file" accept=".xlsx,.xls" onchange="previewExcelImportFile()" class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#F2F7FC] file:text-[#124E96] hover:file:bg-[#D5E5F4] border border-[#D5E5F4] rounded-2xl p-1.5 cursor-pointer" />
+                </div>
+
+                <div id="excel-import-preview" class="hidden p-3.5 rounded-2xl bg-[#F2F7FC] border border-[#D5E5F4] text-xs space-y-2"></div>
+              </div>
+
+              <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 space-y-1">
+                <p class="font-bold flex items-center gap-1.5">
+                  <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-600 shrink-0"></i> Tips Keamanan Data:
+                </p>
+                <p>Disarankan klik <strong>Unduh Backup Lengkap</strong> terlebih dahulu sebelum melakukan impor dengan mode <em>Timpa Data Lama</em>.</p>
+              </div>
+            </div>
+
+            <button type="button" onclick="importAllDataFromExcel()" class="w-full py-3 px-4 rounded-2xl bg-[#124E96] hover:bg-[#0D2E54] text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-colors">
+              <i data-lucide="file-up" class="w-4 h-4"></i> Proses Impor Data Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- Kartu Ekspor Per Modul & Template Input -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="bg-white rounded-3xl p-6 border border-[#D5E5F4] space-y-3.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-[#F2F7FC] text-[#124E96] flex items-center justify-center shrink-0">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-extrabold text-[#0D2E54]">3. Ekspor Data Per Modul</h3>
+                <p class="text-[11px] text-slate-500">Unduh 1 tabel/modul tertentu saja dalam format Excel (.xlsx)</p>
+              </div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2.5">
+              <select id="excel-single-module-select" class="flex-1 px-3 py-2.5 rounded-xl border border-[#D5E5F4] bg-white text-xs font-semibold text-slate-700 outline-none focus:border-[#124E96]"></select>
+              <button type="button" onclick="exportSingleModuleToExcel()" class="px-4 py-2.5 rounded-xl bg-[#124E96] hover:bg-[#0D2E54] text-white text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-colors">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i> Ekspor Modul
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-3xl p-6 border border-[#D5E5F4] space-y-3.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-[#E6F4EA] text-[#3F9B46] flex items-center justify-center shrink-0">
+                <i data-lucide="file-plus-2" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-extrabold text-[#0D2E54]">4. Unduh Template Input Excel</h3>
+                <p class="text-[11px] text-slate-500">Isi data obat/supplier di Excel lalu impor kembali menggunakan mode <strong>Gabung</strong></p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="downloadExcelTemplate('Master_Barang')" class="px-3.5 py-2 rounded-xl bg-[#F2F7FC] hover:bg-[#D5E5F4] border border-[#D5E5F4] text-[#124E96] text-xs font-bold flex items-center gap-1.5 transition-colors">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Template Master Barang
+              </button>
+              <button type="button" onclick="downloadExcelTemplate('Inventaris_Stok')" class="px-3.5 py-2 rounded-xl bg-[#F2F7FC] hover:bg-[#D5E5F4] border border-[#D5E5F4] text-[#124E96] text-xs font-bold flex items-center gap-1.5 transition-colors">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Template Stok Obat
+              </button>
+              <button type="button" onclick="downloadExcelTemplate('Supplier_PBF')" class="px-3.5 py-2 rounded-xl bg-[#F2F7FC] hover:bg-[#D5E5F4] border border-[#D5E5F4] text-[#124E96] text-xs font-bold flex items-center gap-1.5 transition-colors">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Template Supplier (PBF)
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
       </main>
     </div>
   </div>
+
 
   <!-- ==================== MODALS ==================== -->
 
@@ -3322,6 +3459,7 @@
       { key: 'suppliers', label: 'Supplier (PBF)' },
       { key: 'settings', label: 'Pengaturan Apotek' },
       { key: 'marginproduk', label: 'Harga Produk Tertentu' },
+      { key: 'backupexcel', label: 'Ekspor & Impor Excel' },
       { key: 'discount', label: 'Beri Diskon Kasir' }
     ];
 
@@ -3795,7 +3933,7 @@
 
       const opTabs = ['pos', 'shift'];
       const gudangTabs = ['inventory', 'masterdata', 'pengadaan', 'pemesanan', 'penerimaan', 'retur', 'hutangpbf', 'stockcard', 'pinjam', 'opname'];
-      const laporanTabs = ['transactions', 'finance', 'biaya', 'suppliers', 'users', 'settings', 'marginproduk'];
+      const laporanTabs = ['transactions', 'finance', 'biaya', 'suppliers', 'users', 'settings', 'marginproduk', 'backupexcel'];
 
       const grpOp = document.getElementById('nav-group-operasional');
       if (grpOp) grpOp.classList.toggle('hidden', !opTabs.some(t => isTabAllowed(t)));
@@ -3851,7 +3989,7 @@
 
       processRecurringOperatingExpenses(false);
       applyBranding();
-      const firstAllowedTab = ['dashboard', 'pos', 'shift', 'inventory', 'masterdata', 'pengadaan', 'pemesanan', 'penerimaan', 'retur', 'hutangpbf', 'stockcard', 'pinjam', 'opname', 'transactions', 'finance', 'biaya', 'suppliers', 'settings', 'marginproduk']
+      const firstAllowedTab = ['dashboard', 'pos', 'shift', 'inventory', 'masterdata', 'pengadaan', 'pemesanan', 'penerimaan', 'retur', 'hutangpbf', 'stockcard', 'pinjam', 'opname', 'transactions', 'finance', 'biaya', 'suppliers', 'settings', 'marginproduk', 'backupexcel']
         .find(t => hasPermission(t));
       if (firstAllowedTab) {
         switchTab(firstAllowedTab);
@@ -3975,7 +4113,7 @@
       const q = (input ? input.value : '').trim().toLowerCase();
       const opTabs = ['pos', 'shift'];
       const gudangTabs = ['inventory', 'masterdata', 'pengadaan', 'pemesanan', 'penerimaan', 'retur', 'hutangpbf', 'stockcard', 'pinjam', 'opname'];
-      const laporanTabs = ['transactions', 'finance', 'biaya', 'suppliers', 'users', 'settings', 'marginproduk'];
+      const laporanTabs = ['transactions', 'finance', 'biaya', 'suppliers', 'users', 'settings', 'marginproduk', 'backupexcel'];
 
       const visibleTabs = new Set();
       document.querySelectorAll('#sidebar-nav .nav-item').forEach(btn => {
@@ -4031,7 +4169,8 @@
         suppliers: 'Supplier (PBF)',
         users: 'Pengguna & Hak Akses',
         settings: 'Pengaturan Apotek',
-        marginproduk: 'Harga Produk Tertentu'
+        marginproduk: 'Harga Produk Tertentu',
+        backupexcel: 'Ekspor & Impor Excel'
       };
       const topTitleEl = document.getElementById('topbar-page-title');
       if (topTitleEl) topTitleEl.textContent = TAB_TITLES[tabName] || 'Sistem Manajemen Apotek';
@@ -4088,6 +4227,7 @@
       if (currentTab === 'users') renderUsersGrid();
       if (currentTab === 'settings') loadSettingsForm();
       if (currentTab === 'marginproduk') initMarginProductView();
+      if (currentTab === 'backupexcel') renderExcelBackupSummary();
     }
 
     function getAggregatedItemStockInfo(med) {
@@ -5381,23 +5521,416 @@ function renderDashboardCharts() {
       showToast('Data obat berhasil disimpan.');
     }
 
+    function removeStockCardsForDeletedItem(itemName, batch = null) {
+      const key = (itemName || '').trim().toLowerCase();
+      if (!key || !stockCards || typeof stockCards !== 'object') return false;
+      const stillInInventory = inventory.some(m => (m.name || '').trim().toLowerCase() === key);
+      let changed = false;
+
+      if (!stillInInventory) {
+        if (Object.prototype.hasOwnProperty.call(stockCards, key)) {
+          delete stockCards[key];
+          changed = true;
+        }
+      } else if (batch && Array.isArray(stockCards[key])) {
+        const cleanBatch = String(batch).trim().toLowerCase();
+        const beforeLen = stockCards[key].length;
+        stockCards[key] = stockCards[key].filter(rec => {
+          const recBatch = String(rec.batch || '').trim().toLowerCase();
+          return recBatch !== cleanBatch;
+        });
+        if (stockCards[key].length === 0) {
+          delete stockCards[key];
+        }
+        if (beforeLen !== (stockCards[key]?.length || 0)) changed = true;
+      }
+
+      if (changed) {
+        saveState(STORAGE_KEYS.STOCK_CARDS, stockCards);
+      }
+      return changed;
+    }
+
+    function cleanupOrphanedStockCards() {
+      if (!stockCards || typeof stockCards !== 'object') {
+        showToast('Database kartu stok masih kosong.', 'info');
+        return;
+      }
+      const activeInvNames = new Set(
+        inventory.map(m => (m.name || '').trim().toLowerCase()).filter(Boolean)
+      );
+      const orphanKeys = Object.keys(stockCards).filter(k => !activeInvNames.has(k.trim().toLowerCase()));
+
+      if (orphanKeys.length === 0) {
+        showToast('Semua data kartu stok sudah bersih (tidak ada item terhapus yang tersisa).', 'info');
+        return;
+      }
+
+      const totalRows = orphanKeys.reduce((sum, k) => sum + (Array.isArray(stockCards[k]) ? stockCards[k].length : 0), 0);
+      if (!confirm(`Ditemukan ${orphanKeys.length} item yang sudah dihapus dari Inventaris (${totalRows} baris riwayat di Kartu Stok).
+
+Hapus permanen data tersebut dari database Kartu Stok?`)) {
+        return;
+      }
+
+      orphanKeys.forEach(k => {
+        delete stockCards[k];
+      });
+      saveState(STORAGE_KEYS.STOCK_CARDS, stockCards);
+      if (typeof renderStockCardView === 'function') renderStockCardView();
+      showToast(`Berhasil menghapus ${orphanKeys.length} item (${totalRows} baris) dari database Kartu Stok.`, 'success');
+    }
+
+    function purgeAllItemHistoryFromDatabase(itemName, batch = null, masterId = null) {
+      const key = (itemName || '').trim().toLowerCase();
+      if (!key) return 0;
+      const cleanBatch = batch ? String(batch).trim().toLowerCase() : null;
+      const matchItemObj = (obj) => {
+        if (!obj) return false;
+        const n = String(obj.name || obj.itemName || obj.medName || obj.productName || '').trim().toLowerCase();
+        const sameName = n === key;
+        const sameMaster = masterId && obj.masterId && obj.masterId === masterId;
+        if (!sameName && !sameMaster) return false;
+        if (cleanBatch && obj.batch) {
+          return String(obj.batch).trim().toLowerCase() === cleanBatch;
+        }
+        return true;
+      };
+
+      let removedCount = 0;
+
+      // 1. Kartu Stok
+      if (removeStockCardsForDeletedItem(itemName, batch)) removedCount++;
+
+      // 2. Pemesanan (SP)
+      if (Array.isArray(purchaseOrders)) {
+        let changed = false;
+        purchaseOrders = purchaseOrders.map(po => {
+          if (!Array.isArray(po.items)) return po;
+          const filtered = po.items.filter(it => !matchItemObj(it));
+          if (filtered.length !== po.items.length) {
+            changed = true;
+            removedCount += (po.items.length - filtered.length);
+            return { ...po, items: filtered };
+          }
+          return po;
+        }).filter(po => !Array.isArray(po.items) || po.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.ORDERS, purchaseOrders);
+      }
+
+      // 3. Penerimaan Barang (LPB)
+      if (Array.isArray(goodsReceipts)) {
+        let changed = false;
+        goodsReceipts = goodsReceipts.map(lpb => {
+          if (!Array.isArray(lpb.items)) return lpb;
+          const filtered = lpb.items.filter(it => !matchItemObj(it));
+          if (filtered.length !== lpb.items.length) {
+            changed = true;
+            removedCount += (lpb.items.length - filtered.length);
+            return { ...lpb, items: filtered };
+          }
+          return lpb;
+        }).filter(lpb => !Array.isArray(lpb.items) || lpb.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.RECEIPTS, goodsReceipts);
+      }
+
+      // 4. Retur Barang
+      if (Array.isArray(returnsList)) {
+        const before = returnsList.length;
+        returnsList = returnsList.filter(r => !matchItemObj(r));
+        if (returnsList.length !== before) {
+          removedCount += (before - returnsList.length);
+          saveState(STORAGE_KEYS.RETURNS, returnsList);
+        }
+      }
+
+      // 5. Pinjam Meminjam Apotek
+      if (Array.isArray(pharmacyLoans)) {
+        const before = pharmacyLoans.length;
+        pharmacyLoans = pharmacyLoans.filter(l => !matchItemObj(l));
+        if (pharmacyLoans.length !== before) {
+          removedCount += (before - pharmacyLoans.length);
+          saveState(STORAGE_KEYS.LOANS, pharmacyLoans);
+        }
+      }
+
+      // 6. Stok Opname
+      if (Array.isArray(opnameAgendas)) {
+        let changed = false;
+        opnameAgendas = opnameAgendas.map(ag => {
+          if (!Array.isArray(ag.items)) return ag;
+          const filtered = ag.items.filter(it => !matchItemObj(it));
+          if (filtered.length !== ag.items.length) {
+            changed = true;
+            removedCount += (ag.items.length - filtered.length);
+            return { ...ag, items: filtered };
+          }
+          return ag;
+        }).filter(ag => !Array.isArray(ag.items) || ag.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.OPNAME_AGENDAS, opnameAgendas);
+      }
+
+      // 7. Riwayat Transaksi Kasir
+      if (Array.isArray(transactions)) {
+        let changed = false;
+        transactions = transactions.map(trx => {
+          if (!Array.isArray(trx.items)) return trx;
+          const filtered = trx.items.filter(it => !matchItemObj(it));
+          if (filtered.length !== trx.items.length) {
+            changed = true;
+            removedCount += (trx.items.length - filtered.length);
+            return { ...trx, items: filtered };
+          }
+          return trx;
+        }).filter(trx => !Array.isArray(trx.items) || trx.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.TRANSACTIONS, transactions);
+      }
+
+      return removedCount;
+    }
+
+    function purgeSupplierHistoryFromDatabase(supplierName) {
+      const key = (supplierName || '').trim().toLowerCase();
+      if (!key) return 0;
+      let removedCount = 0;
+
+      if (Array.isArray(purchaseOrders)) {
+        const before = purchaseOrders.length;
+        purchaseOrders = purchaseOrders.filter(po => String(po.supplier || '').trim().toLowerCase() !== key);
+        if (purchaseOrders.length !== before) {
+          removedCount += (before - purchaseOrders.length);
+          saveState(STORAGE_KEYS.ORDERS, purchaseOrders);
+        }
+      }
+      if (Array.isArray(goodsReceipts)) {
+        const before = goodsReceipts.length;
+        goodsReceipts = goodsReceipts.filter(lpb => String(lpb.supplier || '').trim().toLowerCase() !== key);
+        if (goodsReceipts.length !== before) {
+          removedCount += (before - goodsReceipts.length);
+          saveState(STORAGE_KEYS.RECEIPTS, goodsReceipts);
+        }
+      }
+      if (Array.isArray(payablesList)) {
+        const before = payablesList.length;
+        payablesList = payablesList.filter(ap => String(ap.supplier || '').trim().toLowerCase() !== key);
+        if (payablesList.length !== before) {
+          removedCount += (before - payablesList.length);
+          saveState(STORAGE_KEYS.PAYABLES, payablesList);
+        }
+      }
+      if (Array.isArray(returnsList)) {
+        const before = returnsList.length;
+        returnsList = returnsList.filter(r => !(r.type === 'PBF' && String(r.supplier || '').trim().toLowerCase() === key));
+        if (returnsList.length !== before) {
+          removedCount += (before - returnsList.length);
+          saveState(STORAGE_KEYS.RETURNS, returnsList);
+        }
+      }
+      return removedCount;
+    }
+
+    function purgeUserHistoryFromDatabase(userObj) {
+      if (!userObj) return 0;
+      const uName = String(userObj.name || '').trim().toLowerCase();
+      const uId = userObj.id;
+      let removedCount = 0;
+
+      if (Array.isArray(cashierClosings)) {
+        const before = cashierClosings.length;
+        cashierClosings = cashierClosings.filter(cc =>
+          String(cc.cashier || cc.cashierName || '').trim().toLowerCase() !== uName && cc.cashierId !== uId
+        );
+        if (cashierClosings.length !== before) {
+          removedCount += (before - cashierClosings.length);
+          saveState(STORAGE_KEYS.CASHIER_CLOSINGS, cashierClosings);
+        }
+      }
+      if (Array.isArray(operatingExpenses)) {
+        const before = operatingExpenses.length;
+        operatingExpenses = operatingExpenses.filter(opx =>
+          String(opx.user || opx.officer || opx.cashier || '').trim().toLowerCase() !== uName && opx.userId !== uId
+        );
+        if (operatingExpenses.length !== before) {
+          removedCount += (before - operatingExpenses.length);
+          saveState(STORAGE_KEYS.OPEX, operatingExpenses);
+        }
+      }
+      if (Array.isArray(transactions)) {
+        const before = transactions.length;
+        transactions = transactions.filter(trx => String(trx.cashier || '').trim().toLowerCase() !== uName);
+        if (transactions.length !== before) {
+          removedCount += (before - transactions.length);
+          saveState(STORAGE_KEYS.TRANSACTIONS, transactions);
+        }
+      }
+      return removedCount;
+    }
+
+    function cleanupAllOrphanedDatabaseRecords() {
+      const activeItemNames = new Set([
+        ...masterItems.map(m => String(m.name || '').trim().toLowerCase()),
+        ...inventory.map(m => String(m.name || '').trim().toLowerCase())
+      ].filter(Boolean));
+      const activeSuppliers = new Set(suppliers.map(s => String(s.name || '').trim().toLowerCase()).filter(Boolean));
+      const activeUsers = new Set(users.map(u => String(u.name || '').trim().toLowerCase()).filter(Boolean));
+
+      let totalRemoved = 0;
+
+      // 1. Kartu Stok
+      if (stockCards && typeof stockCards === 'object') {
+        let scChanged = false;
+        Object.keys(stockCards).forEach(k => {
+          if (!activeItemNames.has(k.trim().toLowerCase())) {
+            totalRemoved += Array.isArray(stockCards[k]) ? stockCards[k].length : 1;
+            delete stockCards[k];
+            scChanged = true;
+          }
+        });
+        if (scChanged) saveState(STORAGE_KEYS.STOCK_CARDS, stockCards);
+      }
+
+      // 2. Helper filter item arrays
+      const isItemActive = (it) => {
+        const n = String(it?.name || it?.itemName || it?.medName || it?.productName || '').trim().toLowerCase();
+        return !n || activeItemNames.has(n);
+      };
+
+      // 3. Pemesanan SP
+      if (Array.isArray(purchaseOrders)) {
+        let changed = false;
+        purchaseOrders = purchaseOrders.filter(po => {
+          const supOk = !po.supplier || activeSuppliers.has(String(po.supplier).trim().toLowerCase());
+          if (!supOk) { totalRemoved++; changed = true; return false; }
+          return true;
+        }).map(po => {
+          if (!Array.isArray(po.items)) return po;
+          const filtered = po.items.filter(isItemActive);
+          if (filtered.length !== po.items.length) {
+            totalRemoved += (po.items.length - filtered.length);
+            changed = true;
+            return { ...po, items: filtered };
+          }
+          return po;
+        }).filter(po => !Array.isArray(po.items) || po.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.ORDERS, purchaseOrders);
+      }
+
+      // 4. Penerimaan LPB
+      if (Array.isArray(goodsReceipts)) {
+        let changed = false;
+        goodsReceipts = goodsReceipts.filter(lpb => {
+          const supOk = !lpb.supplier || activeSuppliers.has(String(lpb.supplier).trim().toLowerCase());
+          if (!supOk) { totalRemoved++; changed = true; return false; }
+          return true;
+        }).map(lpb => {
+          if (!Array.isArray(lpb.items)) return lpb;
+          const filtered = lpb.items.filter(isItemActive);
+          if (filtered.length !== lpb.items.length) {
+            totalRemoved += (lpb.items.length - filtered.length);
+            changed = true;
+            return { ...lpb, items: filtered };
+          }
+          return lpb;
+        }).filter(lpb => !Array.isArray(lpb.items) || lpb.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.RECEIPTS, goodsReceipts);
+      }
+
+      // 5. Retur Barang
+      if (Array.isArray(returnsList)) {
+        const before = returnsList.length;
+        returnsList = returnsList.filter(r => {
+          if (!isItemActive(r)) return false;
+          if (r.type === 'PBF' && r.supplier && !activeSuppliers.has(String(r.supplier).trim().toLowerCase())) return false;
+          return true;
+        });
+        if (returnsList.length !== before) {
+          totalRemoved += (before - returnsList.length);
+          saveState(STORAGE_KEYS.RETURNS, returnsList);
+        }
+      }
+
+      // 6. Hutang PBF
+      if (Array.isArray(payablesList)) {
+        const before = payablesList.length;
+        payablesList = payablesList.filter(ap => !ap.supplier || activeSuppliers.has(String(ap.supplier).trim().toLowerCase()));
+        if (payablesList.length !== before) {
+          totalRemoved += (before - payablesList.length);
+          saveState(STORAGE_KEYS.PAYABLES, payablesList);
+        }
+      }
+
+      // 7. Pinjam Apotek
+      if (Array.isArray(pharmacyLoans)) {
+        const before = pharmacyLoans.length;
+        pharmacyLoans = pharmacyLoans.filter(isItemActive);
+        if (pharmacyLoans.length !== before) {
+          totalRemoved += (before - pharmacyLoans.length);
+          saveState(STORAGE_KEYS.LOANS, pharmacyLoans);
+        }
+      }
+
+      // 8. Stok Opname
+      if (Array.isArray(opnameAgendas)) {
+        let changed = false;
+        opnameAgendas = opnameAgendas.map(ag => {
+          if (!Array.isArray(ag.items)) return ag;
+          const filtered = ag.items.filter(isItemActive);
+          if (filtered.length !== ag.items.length) {
+            totalRemoved += (ag.items.length - filtered.length);
+            changed = true;
+            return { ...ag, items: filtered };
+          }
+          return ag;
+        }).filter(ag => !Array.isArray(ag.items) || ag.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.OPNAME_AGENDAS, opnameAgendas);
+      }
+
+      // 9. Transaksi Kasir
+      if (Array.isArray(transactions)) {
+        let changed = false;
+        transactions = transactions.map(trx => {
+          if (!Array.isArray(trx.items)) return trx;
+          const filtered = trx.items.filter(isItemActive);
+          if (filtered.length !== trx.items.length) {
+            totalRemoved += (trx.items.length - filtered.length);
+            changed = true;
+            return { ...trx, items: filtered };
+          }
+          return trx;
+        }).filter(trx => !Array.isArray(trx.items) || trx.items.length > 0);
+        if (changed) saveState(STORAGE_KEYS.TRANSACTIONS, transactions);
+      }
+
+      // 10. Manajemen Shift
+      if (Array.isArray(cashierClosings)) {
+        const before = cashierClosings.length;
+        cashierClosings = cashierClosings.filter(cc => {
+          const c = String(cc.cashier || cc.cashierName || '').trim().toLowerCase();
+          return !c || activeUsers.has(c);
+        });
+        if (cashierClosings.length !== before) {
+          totalRemoved += (before - cashierClosings.length);
+          saveState(STORAGE_KEYS.CASHIER_CLOSINGS, cashierClosings);
+        }
+      }
+
+      refreshAllViews();
+      if (totalRemoved === 0) {
+        showToast('Database sudah bersih! Tidak ada riwayat dari item/master data terhapus.', 'info');
+      } else {
+        showToast(`Pembersihan selesai! ${totalRemoved} riwayat dari master data terhapus berhasil dibersihkan.`, 'success');
+      }
+    }
+
     function deleteMedicine(id) {
       const target = inventory.find(m => m.id === id);
-      if (target && Number(target.stock || 0) > 0) {
-        recordStockCardMutation(target.name, {
-          type: 'Hapus Item Inventaris',
-          refNo: `DEL-${target.batch || 'INV'}`,
-          note: `Item dihapus dari inventaris (sisa stok ${target.stock} ${target.unit})`,
-          qtyIn: 0,
-          qtyOut: Number(target.stock || 0),
-          balanceAfter: 0
-        });
-      }
       inventory = inventory.filter(m => m.id !== id);
       saveState(STORAGE_KEYS.INVENTORY, inventory);
-      renderInventoryTable();
-      updateAlertBadges();
-      showToast('Obat dihapus dari inventaris.', 'info');
+      if (target && target.name) {
+        purgeAllItemHistoryFromDatabase(target.name, target.batch || null, target.masterId || null);
+      }
+      refreshAllViews();
+      showToast('Obat & seluruh riwayat terkait berhasil dihapus otomatis dari database.', 'info');
     }
 
     // ==================== MASTER DATA BARANG ====================
@@ -5627,10 +6160,20 @@ function renderDashboardCharts() {
     }
 
     function deleteMasterItem(id) {
+      const target = masterItems.find(x => x.id === id);
       masterItems = masterItems.filter(x => x.id !== id);
       saveState(STORAGE_KEYS.MASTER_ITEMS, masterItems);
-      renderMasterDataTable();
-      showToast('Produk dihapus dari Master Data Barang.', 'info');
+      if (target && target.name) {
+        const key = target.name.trim().toLowerCase();
+        const beforeInv = inventory.length;
+        inventory = inventory.filter(m => m.masterId !== target.id && String(m.name || '').trim().toLowerCase() !== key);
+        if (inventory.length !== beforeInv) {
+          saveState(STORAGE_KEYS.INVENTORY, inventory);
+        }
+        purgeAllItemHistoryFromDatabase(target.name, null, target.id);
+      }
+      refreshAllViews();
+      showToast('Produk & seluruh riwayat terkait di semua menu berhasil dihapus otomatis dari database.', 'info');
     }
 
     function refreshMasterUnitDatalists() {
@@ -11759,10 +12302,14 @@ Status SP akan ditutup menjadi "Diterima Lengkap" dan sisa barang tidak lagi men
     }
 
     function deleteSupplier(id) {
+      const target = suppliers.find(s => s.id === id);
       suppliers = suppliers.filter(s => s.id !== id);
       saveState(STORAGE_KEYS.SUPPLIERS, suppliers);
-      renderSuppliersGrid();
-      showToast('Supplier dihapus.', 'info');
+      if (target && target.name) {
+        purgeSupplierHistoryFromDatabase(target.name);
+      }
+      refreshAllViews();
+      showToast('Supplier & seluruh riwayat transaksi PBF terkait berhasil dihapus dari database.', 'info');
     }
 
     // ==================== PENGGUNA & HAK AKSES ====================
@@ -11906,8 +12453,9 @@ Status SP akan ditutup menjadi "Diterima Lengkap" dan sisa barang tidak lagi men
         () => {
           users = users.filter(u => u.id !== userId);
           saveState(STORAGE_KEYS.USERS, users);
-          renderUsersGrid();
-          showToast(`Akun "${target.name}" berhasil dihapus.`, 'info');
+          purgeUserHistoryFromDatabase(target);
+          refreshAllViews();
+          showToast(`Akun "${target.name}" & seluruh riwayat terkait berhasil dihapus dari database.`, 'info');
         }
       );
     }
@@ -13008,6 +13556,390 @@ Status SP akan ditutup menjadi "Diterima Lengkap" dan sisa barang tidak lagi men
       initApp();
     }
     window.addEventListener('load', safeRefreshIcons);
+
+  
+    // ==================== EKSPOR & IMPOR DATA (EXCEL .XLSX) ====================
+    const EXCEL_SHEET_MAP = [
+      { sheet: 'Inventaris_Stok', key: STORAGE_KEYS.INVENTORY, label: 'Stok Obat', getter: () => inventory, setter: v => { inventory = v; }, idPrefix: 'med-' },
+      { sheet: 'Master_Barang', key: STORAGE_KEYS.MASTER_ITEMS, label: 'Master Barang', getter: () => masterItems, setter: v => { masterItems = v; }, idPrefix: 'mst-' },
+      { sheet: 'Transaksi_Kasir', key: STORAGE_KEYS.TRANSACTIONS, label: 'Transaksi Kasir', getter: () => transactions, setter: v => { transactions = v; }, idPrefix: 'trx-' },
+      { sheet: 'Pemesanan_SP', key: STORAGE_KEYS.ORDERS, label: 'Surat Pesanan', getter: () => purchaseOrders, setter: v => { purchaseOrders = v; }, idPrefix: 'po-' },
+      { sheet: 'Penerimaan_Barang', key: STORAGE_KEYS.RECEIPTS, label: 'Penerimaan (LPB)', getter: () => goodsReceipts, setter: v => { goodsReceipts = v; }, idPrefix: 'lpb-' },
+      { sheet: 'Retur_Barang', key: STORAGE_KEYS.RETURNS, label: 'Retur Barang', getter: () => returnsList, setter: v => { returnsList = v; }, idPrefix: 'ret-' },
+      { sheet: 'Hutang_PBF', key: STORAGE_KEYS.PAYABLES, label: 'Hutang PBF', getter: () => payablesList, setter: v => { payablesList = v; }, idPrefix: 'ap-' },
+      { sheet: 'Kartu_Stok', key: STORAGE_KEYS.STOCK_CARDS, label: 'Kartu Stok', getter: () => stockCards, setter: v => { stockCards = v; }, isStockCardMap: true },
+      { sheet: 'Pinjam_Apotek', key: STORAGE_KEYS.LOANS, label: 'Pinjam Apotek', getter: () => pharmacyLoans, setter: v => { pharmacyLoans = v; }, idPrefix: 'loan-' },
+      { sheet: 'Stok_Opname', key: STORAGE_KEYS.OPNAME_AGENDAS, label: 'Stok Opname', getter: () => opnameAgendas, setter: v => { opnameAgendas = v; }, idPrefix: 'opn-' },
+      { sheet: 'Biaya_Operasional', key: STORAGE_KEYS.OPEX, label: 'Biaya Operasional', getter: () => operatingExpenses, setter: v => { operatingExpenses = v; }, idPrefix: 'opx-' },
+      { sheet: 'Biaya_Rutin', key: STORAGE_KEYS.OPEX_RECURRING, label: 'Biaya Rutin', getter: () => recurringOpex, setter: v => { recurringOpex = v; }, idPrefix: 'recx-' },
+      { sheet: 'Tutup_Kasir_Shift', key: STORAGE_KEYS.CASHIER_CLOSINGS, label: 'Manajemen Shift', getter: () => cashierClosings, setter: v => { cashierClosings = v; }, idPrefix: 'cls-' },
+      { sheet: 'Supplier_PBF', key: STORAGE_KEYS.SUPPLIERS, label: 'Supplier (PBF)', getter: () => suppliers, setter: v => { suppliers = v; }, idPrefix: 'sup-' },
+      { sheet: 'Pengguna_Akses', key: STORAGE_KEYS.USERS, label: 'Pengguna & Akses', getter: () => users, setter: v => { users = v; }, idPrefix: 'usr-' },
+      { sheet: 'Pengaturan_Apotek', key: STORAGE_KEYS.SETTINGS, label: 'Pengaturan Apotek', getter: () => settings, setter: v => { settings = v; }, isSingleObject: true }
+    ];
+
+    function getModuleRowCount(item) {
+      const val = item.getter();
+      if (item.isStockCardMap) {
+        if (!val || typeof val !== 'object') return 0;
+        return Object.values(val).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0);
+      }
+      if (item.isSingleObject) return val && typeof val === 'object' ? 1 : 0;
+      return Array.isArray(val) ? val.length : 0;
+    }
+
+    function renderExcelBackupSummary() {
+      const container = document.getElementById('excel-export-summary');
+      if (container) {
+        container.innerHTML = EXCEL_SHEET_MAP.filter(m => !m.isSingleObject).map(m => {
+          const count = getModuleRowCount(m);
+          return `
+            <div class="px-3 py-2 rounded-xl bg-[#F2F7FC] border border-[#D5E5F4]">
+              <p class="text-[10px] text-slate-500 truncate">${m.label}</p>
+              <p class="text-xs font-extrabold text-[#0D2E54]">${count} <span class="font-normal text-[10px] text-slate-400">baris</span></p>
+            </div>
+          `;
+        }).join('');
+      }
+
+      const modSelect = document.getElementById('excel-single-module-select');
+      if (modSelect && modSelect.options.length === 0) {
+        modSelect.innerHTML = EXCEL_SHEET_MAP.map(m => `<option value="${m.sheet}">${m.label} (${m.sheet})</option>`).join('');
+      }
+      safeRefreshIcons();
+    }
+
+    function flattenForExcel(obj) {
+      const out = {};
+      for (const [k, v] of Object.entries(obj || {})) {
+        if (v !== null && typeof v === 'object') {
+          const str = '__JSON__' + JSON.stringify(v);
+          out[k] = str.length > 32000 ? '__OMITTED_TOO_LARGE__' : str;
+        } else if (typeof v === 'string' && v.length > 32000) {
+          out[k] = '__OMITTED_TOO_LARGE__';
+        } else {
+          out[k] = v;
+        }
+      }
+      return out;
+    }
+
+    function unflattenFromExcel(row) {
+      const out = {};
+      for (const [k, v] of Object.entries(row || {})) {
+        if (v === '__OMITTED_TOO_LARGE__') {
+          continue;
+        }
+        if (typeof v === 'string' && v.startsWith('__JSON__')) {
+          try {
+            out[k] = JSON.parse(v.slice(8));
+          } catch (e) {
+            out[k] = v;
+          }
+        } else {
+          out[k] = v;
+        }
+      }
+      return out;
+    }
+
+    function buildWorksheetFromModule(item) {
+      const val = item.getter();
+      let rows = [];
+      if (item.isSingleObject) {
+        rows = val && typeof val === 'object' ? [flattenForExcel(val)] : [];
+      } else if (item.isStockCardMap) {
+        if (val && typeof val === 'object') {
+          Object.entries(val).forEach(([itemKey, list]) => {
+            if (Array.isArray(list)) {
+              list.forEach(entry => {
+                rows.push(flattenForExcel({ _itemKey: itemKey, ...entry }));
+              });
+            }
+          });
+        }
+      } else if (Array.isArray(val)) {
+        rows = val.map(flattenForExcel);
+      }
+
+      const ws = rows.length > 0 ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['__EMPTY__']]);
+      if (rows.length > 0) {
+        const headers = Object.keys(rows[0]);
+        ws['!cols'] = headers.map(h => {
+          let maxLen = h.length;
+          for (let i = 0; i < Math.min(rows.length, 50); i++) {
+            const cellVal = rows[i][h];
+            const len = cellVal !== undefined && cellVal !== null ? String(cellVal).length : 0;
+            if (len > maxLen) maxLen = len;
+          }
+          return { wch: Math.min(Math.max(maxLen + 3, 12), 45) };
+        });
+      }
+      return ws;
+    }
+
+    function exportAllDataToExcel() {
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat. Pastikan koneksi internet aktif saat membuka aplikasi.', 'error');
+        return;
+      }
+
+      try {
+        const wb = XLSX.utils.book_new();
+        const metaRows = [{
+          Aplikasi: 'Apotek Kita',
+          Nama_Apotek: (settings && settings.pharmacyName) || 'Apotek Kita',
+          Waktu_Ekspor: new Date().toISOString(),
+          Diekspor_Oleh: currentUser ? currentUser.name : 'Sistem',
+          Versi_Backup: 'v2-excel-full'
+        }];
+        const metaWs = XLSX.utils.json_to_sheet(metaRows);
+        metaWs['!cols'] = [{ wch: 16 }, { wch: 24 }, { wch: 26 }, { wch: 22 }, { wch: 16 }];
+        XLSX.utils.book_append_sheet(wb, metaWs, 'INFO_BACKUP');
+
+        EXCEL_SHEET_MAP.forEach(item => {
+          const ws = buildWorksheetFromModule(item);
+          XLSX.utils.book_append_sheet(wb, ws, item.sheet);
+        });
+
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        const safeName = ((settings && settings.pharmacyName) || 'Apotek_Kita').replace(/[^a-zA-Z0-9_-]/g, '_');
+        XLSX.writeFile(wb, `Backup_${safeName}_${dateStamp}.xlsx`);
+        showToast('Seluruh data berhasil diekspor ke file Excel (.xlsx)!', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Gagal mengekspor data ke Excel: ' + err.message, 'error');
+      }
+    }
+
+    function exportSingleModuleToExcel() {
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat. Pastikan koneksi internet aktif.', 'error');
+        return;
+      }
+      const modSelect = document.getElementById('excel-single-module-select');
+      const sheetName = modSelect ? modSelect.value : '';
+      const item = EXCEL_SHEET_MAP.find(m => m.sheet === sheetName);
+      if (!item) {
+        showToast('Pilih modul yang ingin diekspor.', 'error');
+        return;
+      }
+      try {
+        const wb = XLSX.utils.book_new();
+        const ws = buildWorksheetFromModule(item);
+        XLSX.utils.book_append_sheet(wb, ws, item.sheet);
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `${item.sheet}_${dateStamp}.xlsx`);
+        showToast(`Data ${item.label} berhasil diekspor ke Excel (.xlsx)!`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Gagal mengekspor modul: ' + err.message, 'error');
+      }
+    }
+
+    function downloadExcelTemplate(sheetName) {
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat. Pastikan koneksi internet aktif.', 'error');
+        return;
+      }
+      const templates = {
+        Master_Barang: [
+          { code: '159601', name: 'Contoh Paracetamol 500mg', midCode: 'OBT-GEN', largestUnit: 'BOX', smallestUnit: 'Strip', conversion: 10, manufacturer: 'PT Kimia Farma Tbk', subCategory: 'OBAT', drugClass: 'Bebas', status: 'Aktif' }
+        ],
+        Inventaris_Stok: [
+          { name: 'Contoh Paracetamol 500mg', category: 'Bebas', unit: 'Strip', batch: 'BTH-2601A', expiry: '2028-12-31', buyPrice: 6000, sellPrice: 8000, stock: 50, minStock: 10, supplier: 'PT Bina San Prima' }
+        ],
+        Supplier_PBF: [
+          { name: 'PT Contoh PBF Nusantara', contact: 'Nama Sales / PIC', phone: '0812-0000-0000', address: 'Jl. Contoh Alamat No. 1' }
+        ]
+      };
+      const sampleRows = templates[sheetName];
+      if (!sampleRows) return;
+      try {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(sampleRows);
+        ws['!cols'] = Object.keys(sampleRows[0]).map(k => ({ wch: Math.max(k.length + 6, 18) }));
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        XLSX.writeFile(wb, `Template_${sheetName}.xlsx`);
+        showToast(`Template ${sheetName} berhasil diunduh!`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Gagal membuat template Excel: ' + err.message, 'error');
+      }
+    }
+
+    function previewExcelImportFile() {
+      const previewEl = document.getElementById('excel-import-preview');
+      const fileInput = document.getElementById('excel-import-file');
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!previewEl) return;
+      if (!file || typeof XLSX === 'undefined') {
+        previewEl.classList.add('hidden');
+        previewEl.innerHTML = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          const matched = [];
+          EXCEL_SHEET_MAP.forEach(item => {
+            if (wb.SheetNames.includes(item.sheet)) {
+              const rawRows = XLSX.utils.sheet_to_json(wb.Sheets[item.sheet], { defval: '' });
+              const isEmpty = rawRows.length === 0 || (rawRows.length === 1 && Object.prototype.hasOwnProperty.call(rawRows[0], '__EMPTY__'));
+              matched.push({ label: item.label, sheet: item.sheet, count: isEmpty ? 0 : rawRows.length });
+            }
+          });
+          if (matched.length === 0) {
+            previewEl.innerHTML = `<p class="text-rose-700 font-bold">File tidak memiliki nama sheet yang cocok dengan database Apotek Kita.</p>`;
+          } else {
+            previewEl.innerHTML = `
+              <p class="font-bold text-[#124E96]">Terdeteksi ${matched.length} modul siap diimpor:</p>
+              <div class="flex flex-wrap gap-1.5">
+                ${matched.map(m => `<span class="px-2 py-0.5 rounded-lg bg-white border border-[#D5E5F4] text-[11px] font-semibold text-slate-700">${m.label}: <strong class="text-[#124E96]">${m.count}</strong></span>`).join('')}
+              </div>
+            `;
+          }
+          previewEl.classList.remove('hidden');
+        } catch (err) {
+          previewEl.innerHTML = `<p class="text-rose-700 font-bold">Gagal membaca file Excel: ${err.message}</p>`;
+          previewEl.classList.remove('hidden');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function normalizeImportedRow(item, row, idx) {
+      const obj = unflattenFromExcel(row);
+      if (!item.isSingleObject && !item.isStockCardMap && !obj.id) {
+        obj.id = (item.idPrefix || 'imp-') + Date.now() + '-' + idx + '-' + Math.random().toString(36).slice(2, 5);
+      }
+      if (item.sheet === 'Inventaris_Stok') {
+        obj.buyPrice = Number(obj.buyPrice || 0);
+        obj.sellPrice = Number(obj.sellPrice || 0);
+        obj.stock = Number(obj.stock || 0);
+        obj.minStock = Number(obj.minStock || 10);
+      } else if (item.sheet === 'Master_Barang') {
+        obj.conversion = Math.max(1, Number(obj.conversion || 1));
+        if (!obj.status) obj.status = 'Aktif';
+      } else if (item.sheet === 'Pengguna_Akses') {
+        obj.active = obj.active === true || obj.active === 'true' || obj.active === 1 || obj.active === '1';
+      }
+      return obj;
+    }
+
+    function importAllDataFromExcel() {
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat. Pastikan koneksi internet aktif.', 'error');
+        return;
+      }
+
+      const fileInput = document.getElementById('excel-import-file');
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!file) {
+        showToast('Silakan pilih file Excel (.xlsx) terlebih dahulu.', 'error');
+        return;
+      }
+
+      const modeEl = document.getElementById('excel-import-mode');
+      const importMode = modeEl ? modeEl.value : 'replace';
+      const confirmMsg = importMode === 'merge'
+        ? 'Apakah Anda yakin ingin MENGGABUNGKAN data dari file Excel ini ke database saat ini?'
+        : 'Apakah Anda yakin ingin MENIMPA data lama dengan isi file Excel ini?';
+
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
+          let importedSheets = 0;
+
+          EXCEL_SHEET_MAP.forEach(item => {
+            if (!wb.SheetNames.includes(item.sheet)) return;
+            const ws = wb.Sheets[item.sheet];
+            const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            const isEmptySheet = rawRows.length === 0 || (rawRows.length === 1 && Object.prototype.hasOwnProperty.call(rawRows[0], '__EMPTY__'));
+
+            if (item.isSingleObject) {
+              if (!isEmptySheet && rawRows[0]) {
+                const restoredObj = unflattenFromExcel(rawRows[0]);
+                const existing = item.getter() || {};
+                const merged = { ...existing, ...restoredObj };
+                item.setter(merged);
+                saveState(item.key, merged);
+                importedSheets++;
+              }
+              return;
+            }
+
+            if (item.isStockCardMap) {
+              const targetMap = importMode === 'merge' ? { ...(item.getter() || {}) } : {};
+              if (!isEmptySheet) {
+                rawRows.forEach(r => {
+                  const clean = unflattenFromExcel(r);
+                  const mapKey = (clean._itemKey || clean.itemName || 'lainnya').toString().trim().toLowerCase();
+                  delete clean._itemKey;
+                  if (!Array.isArray(targetMap[mapKey])) targetMap[mapKey] = [];
+                  if (importMode === 'merge' && clean.id && targetMap[mapKey].some(x => x.id === clean.id)) return;
+                  targetMap[mapKey].push(clean);
+                });
+              }
+              item.setter(targetMap);
+              saveState(item.key, targetMap);
+              importedSheets++;
+              return;
+            }
+
+            // Array-based module
+            if (isEmptySheet) {
+              if (importMode === 'replace') {
+                item.setter([]);
+                saveState(item.key, []);
+                importedSheets++;
+              }
+              return;
+            }
+
+            const restoredList = rawRows.map((r, idx) => normalizeImportedRow(item, r, idx));
+            let finalList = restoredList;
+            if (importMode === 'merge') {
+              const existingList = Array.isArray(item.getter()) ? [...item.getter()] : [];
+              const byId = new Map(existingList.map(x => [x.id, x]));
+              restoredList.forEach(rowObj => {
+                byId.set(rowObj.id, rowObj);
+              });
+              finalList = Array.from(byId.values());
+            }
+
+            item.setter(finalList);
+            saveState(item.key, finalList);
+            importedSheets++;
+          });
+
+          if (importedSheets === 0) {
+            showToast('Tidak ditemukan sheet database Apotek Kita yang valid di dalam file Excel.', 'error');
+            return;
+          }
+
+          if (fileInput) fileInput.value = '';
+          const previewEl = document.getElementById('excel-import-preview');
+          if (previewEl) { previewEl.classList.add('hidden'); previewEl.innerHTML = ''; }
+
+          applyBranding();
+          refreshAllViews();
+          renderExcelBackupSummary();
+          showToast(`Berhasil mengimpor ${importedSheets} modul data dari Excel!`, 'success');
+        } catch (err) {
+          console.error(err);
+          showToast('Gagal membaca file Excel: ' + err.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
 
   </script>
 <!-- ==================== KONEKSI REAL-TIME FIREBASE (SIAP PAKAI) ==================== -->
